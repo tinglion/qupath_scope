@@ -553,27 +553,42 @@ public class CacheManager {
      */
     public void saveAllTaskWsi(String taskId, List<TaskFile> wsiList) throws IOException {
         ensureTaskCacheDirExists(taskId);
-        
+
         File cacheFile = new File(getTaskCacheDir(taskId) + "/all_wsi.json");
         try (FileWriter writer = new FileWriter(cacheFile)) {
             JsonObject wsiObj = new JsonObject();
             wsiObj.addProperty("total", wsiList.size());
-            
+
             JsonArray wsiArray = new JsonArray();
+            int nonDefaultCount = 0;
+
             for (TaskFile taskFile : wsiList) {
                 JsonObject wsiJson = new JsonObject();
                 wsiJson.addProperty("id", taskFile.getId());
-                
+
                 if (taskFile.getWsi() != null) {
                     wsiJson.addProperty("name", taskFile.getWsi().getName());
                 }
-                
+
                 wsiJson.addProperty("type", taskFile.getType());
                 wsiJson.addProperty("status", taskFile.getStatus());
-                wsiJson.addProperty("status_local", taskFile.getLocalStatus());
+
+                // 获取并保存local_status
+                String localStatus = taskFile.getLocalStatus();
+                wsiJson.addProperty("status_local", localStatus);
                 wsiJson.addProperty("is_annotated", taskFile.isAnnotated());
-                wsiJson.addProperty("local_path", taskFile.getLocalPath());
-                
+
+                // 获取并保存local_path
+                String localPath = taskFile.getLocalPath();
+                wsiJson.addProperty("local_path", localPath);
+
+                // 统计非默认状态的WSI数量
+                if (localStatus != null && !localStatus.equals("default")) {
+                    nonDefaultCount++;
+                    logger.debug("Saving WSI {} with local_status='{}', local_path='{}'",
+                        taskFile.getId(), localStatus, localPath);
+                }
+
                 if (taskFile.getWsi() != null) {
                     JsonObject wsiObjJson = new JsonObject();
                     wsiObjJson.addProperty("id", taskFile.getWsi().getId());
@@ -584,13 +599,14 @@ public class CacheManager {
                     wsiObjJson.addProperty("download_url", taskFile.getWsi().getDownloadUrl());
                     wsiJson.add("wsi", wsiObjJson);
                 }
-                
+
                 wsiArray.add(wsiJson);
             }
-            
+
             wsiObj.add("items", wsiArray);
             gson.toJson(wsiObj, writer);
-            logger.info("All WSI saved to cache for task {}: {} items", taskId, wsiList.size());
+            logger.info("All WSI saved to cache for task {}: {} total items, {} with non-default local_status",
+                taskId, wsiList.size(), nonDefaultCount);
         }
     }
 

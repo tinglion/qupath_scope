@@ -406,10 +406,10 @@ public class TaskListDialog extends Stage {
                 List<TaskFile> updatedWsiList = fullResult.getItems();
                 logger.info("API returned {} WSI items, total: {}", updatedWsiList.size(), totalWsi);
 
-                // 合并本地状态（不修改 local_status, local_path 等）
+                // 合并本地状态（根据ID从缓存中读取并保持原有的 local_status, local_path 等本地字段）
                 mergeLocalStatus(updatedWsiList, taskId);
 
-                // 4. 保存 WSI 列表到缓存
+                // 4. 保存 WSI 列表到缓存（包含合并后的本地状态）
                 cacheManager.saveAllTaskWsi(taskId, updatedWsiList);
                 logger.info("Saved updated WSI list to cache for task {}", taskId);
 
@@ -566,33 +566,77 @@ public class TaskListDialog extends Stage {
                 return;
             }
 
+            // 创建ID到缓存WSI的映射
             java.util.Map<String, TaskFile> cachedWsiMap = new java.util.HashMap<>();
             for (TaskFile cachedFile : cachedWsiList) {
-                cachedWsiMap.put(cachedFile.getId(), cachedFile);
-                logger.debug("Cached WSI {}: local_status={}, local_path={}",
-                    cachedFile.getId(), cachedFile.getLocalStatus(), cachedFile.getLocalPath());
+                if (cachedFile.getId() != null && !cachedFile.getId().isEmpty()) {
+                    cachedWsiMap.put(cachedFile.getId(), cachedFile);
+                    logger.debug("Cached WSI {}: local_status='{}', local_path='{}'",
+                        cachedFile.getId(), cachedFile.getLocalStatus(), cachedFile.getLocalPath());
+                }
             }
 
             int mergedCount = 0;
+            int failedCount = 0;
+
+            // 遍历API返回的WSI列表，根据ID合并本地状态
             for (TaskFile apiFile : wsiList) {
+                if (apiFile.getId() == null || apiFile.getId().isEmpty()) {
+                    logger.warn("WSI with null or empty ID found in API response, skipping");
+                    continue;
+                }
+
                 TaskFile cachedFile = cachedWsiMap.get(apiFile.getId());
                 if (cachedFile != null) {
                     String beforeStatus = apiFile.getLocalStatus();
-                    // 批量合并时不触发缓存更新，因为之后会统一保存整个列表
-                    apiFile.setLocalStatus(cachedFile.getLocalStatus(), false);
-                    apiFile.setLocalPath(cachedFile.getLocalPath(), false);
+                    String beforePath = apiFile.getLocalPath();
+                    String cachedStatus = cachedFile.getLocalStatus();
+                    String cachedPath = cachedFile.getLocalPath();
+
+                    // 合并local_status（如果缓存中有值且不是"default"，使用缓存的值）
+                    if (cachedStatus != null && !cachedStatus.isEmpty() && !cachedStatus.equals("default")) {
+                        boolean statusSet = apiFile.setLocalStatus(cachedStatus, false);
+                        if (!statusSet) {
+                            logger.warn("Failed to set local status '{}' for WSI {}, may be invalid status value",
+                                cachedStatus, apiFile.getId());
+                            failedCount++;
+                        }
+                    }
+
+                    // 合并local_path（如果缓存中有值，使用缓存的值）
+                    if (cachedPath != null && !cachedPath.isEmpty()) {
+                        apiFile.setLocalPath(cachedPath, false);
+                    }
+
+                    // 合并annotated标志
                     apiFile.setAnnotated(cachedFile.isAnnotated());
+
                     String afterStatus = apiFile.getLocalStatus();
-                    logger.info("Merged WSI {}: status changed from '{}' to '{}'",
-                        apiFile.getId(), beforeStatus, afterStatus);
+                    String afterPath = apiFile.getLocalPath();
+
+                    // 记录合并详情
+                    if (!beforeStatus.equals(afterStatus) ||
+                        (beforePath == null && afterPath != null) ||
+                        (beforePath != null && !beforePath.equals(afterPath))) {
+                        logger.info("Merged WSI {}: status '{}' -> '{}', path '{}' -> '{}'",
+                            apiFile.getId(), beforeStatus, afterStatus, beforePath, afterPath);
+                    }
                     mergedCount++;
                 } else {
                     logger.debug("WSI {} not found in cache, keeping default status", apiFile.getId());
                 }
             }
-            logger.info("Merge completed: {}/{} WSI items merged", mergedCount, wsiList.size());
+
+            logger.info("Merge completed: {}/{} WSI items merged successfully, {} failed",
+                mergedCount, wsiList.size(), failedCount);
+
+            if (failedCount > 0) {
+                logger.warn("Some WSI items failed to merge, check logs for details");
+            }
         } catch (IOException e) {
-            logger.warn("Failed to merge local status: {}", e.getMessage(), e);
+            logger.error("Failed to merge local status: {}", e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error during merge: {}", e.getMessage(), e);
         }
     }
 

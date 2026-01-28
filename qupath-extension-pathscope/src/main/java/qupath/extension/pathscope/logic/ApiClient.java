@@ -295,13 +295,8 @@ public class ApiClient {
                     throw new IOException("Failed to parse task list response: " + e.getMessage());
                 }
 
-                // Save tasks to cache
-                try {
-                    cacheManager.saveTaskList(tasks, total);
-                    logger.debug("Saved {} tasks to cache with total: {}", tasks.size(), total);
-                } catch (Exception e) {
-                    logger.debug("Failed to save tasks to cache: {}", e.getMessage());
-                }
+                // Note: Cache management is now handled by the caller (UI layer)
+                // ApiClient only returns data from API without caching
 
                 logger.debug("Task list request completed, returned {} tasks with total: {}", tasks.size(), total);
                 return new TaskListResult(tasks, total);
@@ -392,13 +387,9 @@ public class ApiClient {
                     throw new IOException("Failed to parse WSI list response: " + e.getMessage());
                 }
 
-                // Save WSI list to cache
-                try {
-                    cacheManager.saveTaskWsiList(taskId, taskFiles, total);
-                    logger.debug("Saved {} WSIs to cache for task {} with total: {}", taskFiles.size(), taskId, total);
-                } catch (Exception e) {
-                    logger.debug("Failed to save WSI list to cache: {}", e.getMessage());
-                }
+                // Note: Cache management is now handled by the caller (UI layer)
+                // ApiClient only returns data from API without caching
+                // This ensures local status (local_status, local_path) can be properly merged before saving to cache
 
                 logger.debug("WSI list request completed, returned {} WSIs with total: {}", taskFiles.size(), total);
                 return new WsiListResult(taskFiles, total);
