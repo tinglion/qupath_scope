@@ -120,6 +120,17 @@ public class TaskFile {
      * 设置本地文件状态，并更新对应task的缓存
      */
     public boolean setLocalStatus(String status) {
+        return setLocalStatus(status, true);
+    }
+
+    /**
+     * 设置本地文件状态
+     *
+     * @param status          新状态
+     * @param updateCache     是否更新缓存
+     * @return 是否设置成功
+     */
+    public boolean setLocalStatus(String status, boolean updateCache) {
         String[] validStatuses = {"default", "downloading", "downloaded", "annotated"};
         boolean isValid = false;
         for (String validStatus : validStatuses) {
@@ -135,14 +146,13 @@ public class TaskFile {
 
         this.localStatus.set(status);
 
-        // 更新对应task的缓存
-        if (this.task != null && this.cacheManager != null) {
-            try {
-                this.cacheManager.saveTask(this.task);
-                return true;
-            } catch (Exception e) {
-                // 记录错误
-                return false;
+        // 如果需要更新缓存，使用高效的单个 WSI 更新方法
+        if (updateCache) {
+            if (this.taskId != null && this.id != null && this.cacheManager != null) {
+                return this.cacheManager.updateWsiLocalStatus(this.taskId, this.id, status);
+            } else if (this.task != null && this.id != null && this.cacheManager != null) {
+                // 如果没有 taskId，但有 task 对象，从 task 获取 ID
+                return this.cacheManager.updateWsiLocalStatus(this.task.getId(), this.id, status);
             }
         }
 
@@ -229,7 +239,26 @@ public class TaskFile {
     }
 
     public void setLocalPath(String localPath) {
+        setLocalPath(localPath, true);
+    }
+
+    /**
+     * 设置本地文件路径
+     *
+     * @param localPath   本地路径
+     * @param updateCache 是否更新缓存
+     */
+    public void setLocalPath(String localPath, boolean updateCache) {
         this.localPath = localPath;
+
+        // 如果需要更新缓存，自动更新缓存中的本地路径
+        if (updateCache) {
+            if (this.taskId != null && this.id != null && this.cacheManager != null) {
+                this.cacheManager.updateWsiLocalPath(this.taskId, this.id, localPath);
+            } else if (this.task != null && this.id != null && this.cacheManager != null) {
+                this.cacheManager.updateWsiLocalPath(this.task.getId(), this.id, localPath);
+            }
+        }
     }
 
     public boolean isAnnotated() {

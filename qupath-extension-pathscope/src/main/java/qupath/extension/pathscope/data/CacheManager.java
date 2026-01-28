@@ -674,20 +674,196 @@ public class CacheManager {
         try (FileReader reader = new FileReader(cacheFile)) {
             JsonElement rootElement = gson.fromJson(reader, JsonElement.class);
             List<TaskFile> wsiList = new ArrayList<>();
-            
+
             if (rootElement.isJsonObject()) {
                 JsonObject wsiObj = rootElement.getAsJsonObject();
                 JsonArray wsiArray = wsiObj.getAsJsonArray("items");
-                
+
                 for (int i = 0; i < wsiArray.size(); i++) {
                     JsonObject wsiJson = wsiArray.get(i).getAsJsonObject();
                     TaskFile taskFile = TaskFile.fromJson(wsiJson, null, this);
                     wsiList.add(taskFile);
                 }
             }
-            
+
             logger.debug("Loaded all WSI from cache for task {}: {} items", taskId, wsiList.size());
             return wsiList;
         }
+    }
+
+    /**
+     * 更新单个 WSI 的 local status 到缓存
+     * 这个方法只更新 WSI 的 local status 字段，不会重新保存整个任务
+     *
+     * @param taskId      任务ID
+     * @param wsiId       WSI ID
+     * @param localStatus 新的本地状态
+     * @return 是否更新成功
+     */
+    public boolean updateWsiLocalStatus(String taskId, String wsiId, String localStatus) {
+        logger.debug("Updating WSI local status in cache: taskId={}, wsiId={}, status={}", taskId, wsiId, localStatus);
+
+        boolean updated = false;
+
+        // 1. 更新主 WSI 列表文件 (wsi_list.json)
+        try {
+            updated = updateWsiStatusInFile(getTaskWsiListCacheFile(taskId), wsiId, localStatus) || updated;
+        } catch (IOException e) {
+            logger.warn("Failed to update WSI status in main list: {}", e.getMessage());
+        }
+
+        // 2. 更新全部 WSI 文件 (all_wsi.json)
+        try {
+            String allWsiFile = getTaskCacheDir(taskId) + "/all_wsi.json";
+            updated = updateWsiStatusInFile(allWsiFile, wsiId, localStatus) || updated;
+        } catch (IOException e) {
+            logger.warn("Failed to update WSI status in all_wsi.json: {}", e.getMessage());
+        }
+
+        // 3. 更新所有分页缓存文件
+        File taskDir = new File(getTaskCacheDir(taskId));
+        if (taskDir.exists() && taskDir.isDirectory()) {
+            File[] pageFiles = taskDir.listFiles((dir, name) -> name.startsWith("wsi_list_page_") && name.endsWith(".json"));
+            if (pageFiles != null) {
+                for (File pageFile : pageFiles) {
+                    try {
+                        updated = updateWsiStatusInFile(pageFile.getAbsolutePath(), wsiId, localStatus) || updated;
+                    } catch (IOException e) {
+                        logger.warn("Failed to update WSI status in page file {}: {}", pageFile.getName(), e.getMessage());
+                    }
+                }
+            }
+        }
+
+        if (updated) {
+            logger.info("Successfully updated WSI local status in cache: taskId={}, wsiId={}, status={}", taskId, wsiId, localStatus);
+        } else {
+            logger.warn("WSI not found in any cache file: taskId={}, wsiId={}", taskId, wsiId);
+        }
+
+        return updated;
+    }
+
+    /**
+     * 更新单个 WSI 的本地路径到缓存
+     *
+     * @param taskId    任务ID
+     * @param wsiId     WSI ID
+     * @param localPath 新的本地路径
+     * @return 是否更新成功
+     */
+    public boolean updateWsiLocalPath(String taskId, String wsiId, String localPath) {
+        logger.debug("Updating WSI local path in cache: taskId={}, wsiId={}, path={}", taskId, wsiId, localPath);
+
+        boolean updated = false;
+
+        // 更新主 WSI 列表文件
+        try {
+            updated = updateWsiFieldInFile(getTaskWsiListCacheFile(taskId), wsiId, "local_path", localPath) || updated;
+        } catch (IOException e) {
+            logger.warn("Failed to update WSI path in main list: {}", e.getMessage());
+        }
+
+        // 更新全部 WSI 文件
+        try {
+            String allWsiFile = getTaskCacheDir(taskId) + "/all_wsi.json";
+            updated = updateWsiFieldInFile(allWsiFile, wsiId, "local_path", localPath) || updated;
+        } catch (IOException e) {
+            logger.warn("Failed to update WSI path in all_wsi.json: {}", e.getMessage());
+        }
+
+        // 更新所有分页缓存文件
+        File taskDir = new File(getTaskCacheDir(taskId));
+        if (taskDir.exists() && taskDir.isDirectory()) {
+            File[] pageFiles = taskDir.listFiles((dir, name) -> name.startsWith("wsi_list_page_") && name.endsWith(".json"));
+            if (pageFiles != null) {
+                for (File pageFile : pageFiles) {
+                    try {
+                        updated = updateWsiFieldInFile(pageFile.getAbsolutePath(), wsiId, "local_path", localPath) || updated;
+                    } catch (IOException e) {
+                        logger.warn("Failed to update WSI path in page file {}: {}", pageFile.getName(), e.getMessage());
+                    }
+                }
+            }
+        }
+
+        if (updated) {
+            logger.info("Successfully updated WSI local path in cache: taskId={}, wsiId={}", taskId, wsiId);
+        }
+
+        return updated;
+    }
+
+    /**
+     * 在指定的缓存文件中更新 WSI 的 local status
+     *
+     * @param filePath    缓存文件路径
+     * @param wsiId       WSI ID
+     * @param localStatus 新的本地状态
+     * @return 是否找到并更新了该 WSI
+     */
+    private boolean updateWsiStatusInFile(String filePath, String wsiId, String localStatus) throws IOException {
+        return updateWsiFieldInFile(filePath, wsiId, "status_local", localStatus);
+    }
+
+    /**
+     * 在指定的缓存文件中更新 WSI 的字段
+     *
+     * @param filePath  缓存文件路径
+     * @param wsiId     WSI ID
+     * @param fieldName 字段名
+     * @param value     新值
+     * @return 是否找到并更新了该 WSI
+     */
+    private boolean updateWsiFieldInFile(String filePath, String wsiId, String fieldName, Object value) throws IOException {
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return false;
+        }
+
+        boolean found = false;
+
+        // 读取文件内容
+        JsonElement rootElement;
+        try (FileReader reader = new FileReader(file)) {
+            rootElement = gson.fromJson(reader, JsonElement.class);
+        }
+
+        if (rootElement == null || !rootElement.isJsonObject()) {
+            return false;
+        }
+
+        JsonObject root = rootElement.getAsJsonObject();
+        JsonArray items = root.getAsJsonArray("items");
+
+        if (items == null) {
+            return false;
+        }
+
+        // 查找并更新对应的 WSI
+        for (int i = 0; i < items.size(); i++) {
+            JsonObject wsiJson = items.get(i).getAsJsonObject();
+            if (wsiJson.has("id") && wsiId.equals(wsiJson.get("id").getAsString())) {
+                // 根据值的类型添加到JSON
+                if (value instanceof String) {
+                    wsiJson.addProperty(fieldName, (String) value);
+                } else if (value instanceof Number) {
+                    wsiJson.addProperty(fieldName, (Number) value);
+                } else if (value instanceof Boolean) {
+                    wsiJson.addProperty(fieldName, (Boolean) value);
+                }
+                found = true;
+                break;
+            }
+        }
+
+        // 如果找到并更新了，写回文件
+        if (found) {
+            try (FileWriter writer = new FileWriter(file)) {
+                gson.toJson(root, writer);
+            }
+        }
+
+        return found;
     }
 }

@@ -45,3 +45,8 @@ hs_err*.log
 *thumbs.db
 bin/
 .kotlin
+
+# custom
+dist
+libs
+.claude

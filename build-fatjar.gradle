@@ -1,0 +1,60 @@
+/*
+ * Gradle script to build a fat JAR for the qupath-extension-pathscope plugin
+ */
+
+plugins {
+    id('java')
+}
+
+group = 'io.github.qupath'
+version = file('VERSION').text.trim()
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ['qupath-extension-pathscope/src/main/java']
+        }
+        resources {
+            srcDirs = ['qupath-extension-pathscope/src/main/resources']
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'SciJava'
+        url = uri('https://maven.scijava.org/content/groups/public/')
+    }
+}
+
+dependencies {
+    implementation('com.squareup.okhttp3:okhttp:4.12.0')
+    implementation('com.google.code.gson:gson:2.13.2')
+}
+
+tasks.register<Jar>('fatJar') {
+    group = 'build'
+    description = 'Create a fat JAR with all dependencies'
+    
+    archiveBaseName.set('qupath-extension-pathscope')
+    archiveClassifier.set('all')
+    archiveVersion.set(version)
+    
+    // Include compiled classes
+    from(sourceSets.main.get().output)
+    
+    // Include dependencies
+    from(configurations.runtimeClasspath.get().collect { it.isDirectory() ? it : zipTree(it) })
+    
+    // Exclude QuPath core classes (they will be provided by QuPath itself)
+    exclude('qupath/core/**')
+    exclude('qupath/lib/**')
+    exclude('qupath/imagej/**')
+    
+    // Exclude signature files
+    exclude('META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA')
+    
+    // Set destination directory
+    destinationDirectory.set(file('build/libs'))
+}

@@ -436,7 +436,7 @@ public class TaskListDialog extends Stage {
 
     /**
      * 合并本地状态到WSI列表
-     * 
+     *
      * @param wsiList WSI列表
      * @param taskId  任务ID
      */
@@ -452,8 +452,9 @@ public class TaskListDialog extends Stage {
             for (TaskFile apiFile : wsiList) {
                 TaskFile cachedFile = cachedWsiMap.get(apiFile.getId());
                 if (cachedFile != null) {
-                    apiFile.setLocalStatus(cachedFile.getLocalStatus());
-                    apiFile.setLocalPath(cachedFile.getLocalPath());
+                    // 批量合并时不触发缓存更新，因为之后会统一保存整个列表
+                    apiFile.setLocalStatus(cachedFile.getLocalStatus(), false);
+                    apiFile.setLocalPath(cachedFile.getLocalPath(), false);
                     apiFile.setAnnotated(cachedFile.isAnnotated());
                     logger.debug("Merged local status for WSI {}: {}", apiFile.getId(), cachedFile.getLocalStatus());
                 }
