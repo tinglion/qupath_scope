@@ -13,34 +13,6 @@ public class Wsi {
     /**
      * WSI状态枚举
      */
-    public enum Status {
-        DEFAULT("default"),
-        DOWNLOADING("downloading"),
-        DOWNLOADED("downloaded"),
-        ANNOTATED("annotated");
-
-        private final String value;
-
-        Status(String value) {
-            this.value = value;
-        }
-
-        public String getValue() {
-            return value;
-        }
-
-        /**
-         * 根据字符串值获取状态枚举
-         */
-        public static Status fromValue(String value) {
-            for (Status status : Status.values()) {
-                if (status.value.equals(value)) {
-                    return status;
-                }
-            }
-            return DEFAULT;
-        }
-    }
 
     private int projectWsiId;
     private int id;
@@ -58,7 +30,6 @@ public class Wsi {
     private Integer deptBelongId;
     private String createDatetime;
     private String updateDatetime;
-    private Status status;
 
     /**
      * 初始化WSI对象
@@ -66,7 +37,7 @@ public class Wsi {
     public Wsi(int projectWsiId, int id, String name, String path, long size, String ptype, String url,
             String downloadUrl,
             String description, String modifier, String modifierName, String creator, String creatorName,
-            Integer deptBelongId, String createDatetime, String updateDatetime, Status status) {
+            Integer deptBelongId, String createDatetime, String updateDatetime) {
         this.projectWsiId = projectWsiId;
         this.id = id;
         this.name = name;
@@ -83,7 +54,6 @@ public class Wsi {
         this.deptBelongId = deptBelongId;
         this.createDatetime = createDatetime;
         this.updateDatetime = updateDatetime;
-        this.status = status != null ? status : Status.DEFAULT;
     }
 
     /**
@@ -125,12 +95,9 @@ public class Wsi {
         String updateDatetime = json.has("update_datetime") && !json.get("update_datetime").isJsonNull()
                 ? json.get("update_datetime").getAsString()
                 : "";
-        Status status = json.has("status") && !json.get("status").isJsonNull()
-                ? Status.fromValue(json.get("status").getAsString())
-                : Status.DEFAULT;
 
         return new Wsi(projectWsiId, id, name, path, size, ptype, url, downloadUrl, description, modifier, modifierName,
-                creator, creatorName, deptBelongId, createDatetime, updateDatetime, status);
+                creator, creatorName, deptBelongId, createDatetime, updateDatetime);
     }
 
     /**
@@ -274,27 +241,12 @@ public class Wsi {
         this.updateDatetime = updateDatetime;
     }
 
-    /**
-     * 获取WSI状态
-     */
-    public Status getStatus() {
-        return status;
-    }
-
-    /**
-     * 设置WSI状态
-     */
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
     @Override
     public String toString() {
         return "Wsi{" +
                 "id=" + id +
                 ", name='" + name + '\'' +
                 ", path='" + path + '\'' +
-                ", status='" + status.getValue() + '\'' +
                 '}';
     }
 }

@@ -50,3 +50,4 @@ bin/
 dist
 libs
 .claude
+build-java21

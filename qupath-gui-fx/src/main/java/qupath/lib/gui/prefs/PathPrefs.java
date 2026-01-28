@@ -439,7 +439,7 @@ public class PathPrefs {
 	 */
 	public static synchronized DoubleProperty maxMemoryPercentProperty() {
 		if (maxMemoryPercent == null) {
-            maxMemoryPercent = createPersistentPreference("maxMemoryMB", 50.0);
+            maxMemoryPercent = createPersistentPreference("maxMemoryMB", 90.0);
             var maxMemoryFromConfig = getMaxMemoryFromConfig();
             if (maxMemoryFromConfig > 0 && maxMemoryFromConfig <= 100 &&
                     !GeneralTools.almostTheSame(maxMemoryFromConfig, maxMemoryPercent.get(), 1e-3)) {
@@ -1249,7 +1249,7 @@ public class PathPrefs {
 	}
 	
 	
-	private static DoubleProperty tileCachePercentage = createPersistentPreference("tileCachePercentage", 25.0);
+	private static DoubleProperty tileCachePercentage = createPersistentPreference("tileCachePercentage", 50.0);
 	
 	/**
 	 * Requested percentage of available memory to use for tile caching.

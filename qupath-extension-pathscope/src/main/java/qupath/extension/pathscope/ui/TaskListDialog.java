@@ -150,6 +150,12 @@ public class TaskListDialog extends Stage {
         });
         sizeColumn.setPrefWidth(100);
 
+        TableColumn<TaskFile, Integer> statusColumn = new TableColumn<>("Status");
+        statusColumn.setCellValueFactory(cellData ->
+            new javafx.beans.property.SimpleIntegerProperty(cellData.getValue().getStatus()).asObject()
+        );
+        statusColumn.setPrefWidth(80);
+
         TableColumn<TaskFile, String> localStatusColumn = new TableColumn<>("Local Status");
         localStatusColumn.setCellValueFactory(cellData -> cellData.getValue().localStatusProperty());
         localStatusColumn.setPrefWidth(150);
@@ -158,8 +164,8 @@ public class TaskListDialog extends Stage {
         localPathColumn.setCellValueFactory(new PropertyValueFactory<>("localPath"));
         localPathColumn.setPrefWidth(200);
 
-        wsiTable.getColumns().addAll(wsiIdColumn, wsiNameColumn, localStatusColumn, sizeColumn, ptypeColumn,
-                localPathColumn);
+        wsiTable.getColumns().addAll(wsiIdColumn, wsiNameColumn, statusColumn, localStatusColumn, sizeColumn,
+                ptypeColumn, localPathColumn);
 
         // Create buttons
         Button updateTasksButton = new Button("Update Tasks");
@@ -168,7 +174,7 @@ public class TaskListDialog extends Stage {
         Button updateTaskButton = new Button("Update Task");
         updateTaskButton.setOnAction(e -> {
             if (selectedTask != null) {
-                loadTaskWsiList(selectedTask.getId(), true); // 强制刷新，从接口获取最新数据
+                updateSingleTask(selectedTask.getId()); // 更新task信息和WSI列表
             }
         });
 
@@ -256,6 +262,8 @@ public class TaskListDialog extends Stage {
         taskTable.getSelectionModel().selectedItemProperty().addListener((obs, oldTask, newTask) -> {
             if (newTask != null) {
                 selectedTask = newTask;
+                // 切换task时重置到第一页
+                wsiCurrentPage = 1;
                 loadTaskWsiList(newTask.getId());
             }
         });
@@ -297,13 +305,17 @@ public class TaskListDialog extends Stage {
 
                 // 缓存无数据或强制刷新，从接口获取全部数据
                 logger.info("Loading all tasks from API");
-                
-                // 一次性获取全部任务（使用较大的pageSize）
-                int pageSize = 1000; // 假设最大任务数不超过1000
-                TaskListResult result = apiClient.getTaskList(userId, 1, pageSize);
+
+                // 先获取第一页以得到total值
+                TaskListResult firstPageResult = apiClient.getTaskList(userId, 1, 1);
+                totalTasks = firstPageResult.getTotal();
+
+                logger.info("Total tasks count from API: {}", totalTasks);
+
+                // 根据total值一次性获取全部任务
+                TaskListResult result = apiClient.getTaskList(userId, 1, totalTasks);
                 allTasks = result.getItems();
-                totalTasks = result.getTotal();
-                
+
                 logger.info("API returned {} tasks, total: {}", allTasks.size(), totalTasks);
 
                 // 保存全部任务到缓存
@@ -348,6 +360,90 @@ public class TaskListDialog extends Stage {
         });
     }
 
+    /**
+     * 更新单个任务的信息和WSI列表
+     * 从接口获取最新数据，合并本地信息后保存到缓存
+     *
+     * @param taskId 任务ID
+     */
+    private void updateSingleTask(String taskId) {
+        new Thread(() -> {
+            try {
+                logger.info("Updating task {} with latest data from API", taskId);
+
+                // 1. 从缓存加载所有 tasks
+                List<Task> cachedTasks = cacheManager.loadAllTasks();
+
+                // 2. 找到要更新的 task
+                Task taskToUpdate = null;
+                int taskIndex = -1;
+                for (int i = 0; i < cachedTasks.size(); i++) {
+                    if (cachedTasks.get(i).getId().equals(taskId)) {
+                        taskToUpdate = cachedTasks.get(i);
+                        taskIndex = i;
+                        break;
+                    }
+                }
+
+                if (taskToUpdate == null) {
+                    logger.warn("Task {} not found in cache", taskId);
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(Alert.AlertType.WARNING);
+                        alert.setTitle("Warning");
+                        alert.setHeaderText("Task not found");
+                        alert.setContentText("Cannot find task in the cached task list.");
+                        alert.showAndWait();
+                    });
+                    return;
+                }
+
+                // 3. 更新 WSI 列表（从接口获取并合并本地信息）
+                WsiListResult result = apiClient.getTaskWsiList(taskId, 1, 1);
+                int totalWsi = result.getTotal();
+                logger.info("Total WSI count from API: {}", totalWsi);
+
+                WsiListResult fullResult = apiClient.getTaskWsiList(taskId, 1, totalWsi);
+                List<TaskFile> updatedWsiList = fullResult.getItems();
+                logger.info("API returned {} WSI items, total: {}", updatedWsiList.size(), totalWsi);
+
+                // 合并本地状态（不修改 local_status, local_path 等）
+                mergeLocalStatus(updatedWsiList, taskId);
+
+                // 4. 保存 WSI 列表到缓存
+                cacheManager.saveAllTaskWsi(taskId, updatedWsiList);
+                logger.info("Saved updated WSI list to cache for task {}", taskId);
+
+                // 5. 更新 task 对象的 files 字段
+                taskToUpdate.setFiles(updatedWsiList);
+
+                // 6. 保存更新后的 task 到缓存
+                if (taskIndex >= 0) {
+                    cachedTasks.set(taskIndex, taskToUpdate);
+                }
+                cacheManager.saveAllTasks(cachedTasks);
+                logger.info("Saved updated task info to cache for task {}", taskId);
+
+                // 7. 刷新显示（重置到第一页）
+                wsiCurrentPage = 1;
+                updateWsiDisplay(updatedWsiList, totalWsi);
+
+                Platform.runLater(() -> {
+                    logger.info("Task {} updated successfully", taskId);
+                });
+
+            } catch (Exception e) {
+                logger.error("Failed to update task {}: {}", taskId, e.getMessage(), e);
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error");
+                    alert.setHeaderText("Failed to update task");
+                    alert.setContentText("Error: " + e.getMessage());
+                    alert.showAndWait();
+                });
+            }
+        }).start();
+    }
+
     private void loadTaskWsiList(String taskId) {
         loadTaskWsiList(taskId, false);
     }
@@ -372,6 +468,8 @@ public class TaskListDialog extends Stage {
                     if (!allWsiList.isEmpty()) {
                         // 缓存有数据，使用缓存数据并进行分页显示
                         logger.info("Loaded all WSI from cache for task {}: {} items", taskId, allWsiList.size());
+                        // 不在这里重置页码，因为翻页操作需要保持当前页码
+                        // 页码重置在切换task和update task时已经处理
                         updateWsiDisplay(allWsiList, totalWsi);
                         return;
                     }
@@ -379,13 +477,17 @@ public class TaskListDialog extends Stage {
 
                 // 缓存无数据或强制刷新，从接口获取全部数据
                 logger.info("Loading all WSI from API for task {}", taskId);
-                
-                // 一次性获取全部WSI数据（使用较大的pageSize）
-                int pageSize = 10000; // 假设最大WSI数不超过10000
-                WsiListResult result = apiClient.getTaskWsiList(taskId, 1, pageSize);
+
+                // 先获取第一页以得到total值
+                WsiListResult firstPageResult = apiClient.getTaskWsiList(taskId, 1, 1);
+                totalWsi = firstPageResult.getTotal();
+
+                logger.info("Total WSI count from API: {}", totalWsi);
+
+                // 根据total值一次性获取全部WSI数据
+                WsiListResult result = apiClient.getTaskWsiList(taskId, 1, totalWsi);
                 allWsiList = result.getItems();
-                totalWsi = result.getTotal();
-                
+
                 logger.info("API returned {} WSI items, total: {}", allWsiList.size(), totalWsi);
 
                 // 合并本地状态
@@ -417,17 +519,30 @@ public class TaskListDialog extends Stage {
      * @param total      总数
      */
     private void updateWsiDisplay(List<TaskFile> allWsiList, int total) {
+        // 计算总页数
+        int totalPages = total > 0 ? (total + wsiPageSize - 1) / wsiPageSize : 1;
+
+        // 检查并调整当前页码，避免超出范围
+        if (wsiCurrentPage > totalPages) {
+            logger.warn("Current page {} exceeds total pages {}, adjusting to last page", wsiCurrentPage, totalPages);
+            wsiCurrentPage = Math.max(1, totalPages);
+        }
+        if (wsiCurrentPage < 1) {
+            logger.warn("Current page {} is less than 1, adjusting to page 1", wsiCurrentPage);
+            wsiCurrentPage = 1;
+        }
+
         // 计算当前页的数据范围
         int startIndex = (wsiCurrentPage - 1) * wsiPageSize;
         int endIndex = Math.min(startIndex + wsiPageSize, allWsiList.size());
-        
+
         // 获取当前页的数据
         List<TaskFile> pageWsiList = allWsiList.subList(startIndex, endIndex);
-        
+
         Platform.runLater(() -> {
             taskFiles.clear();
             taskFiles.addAll(pageWsiList);
-            wsiTotalPages = total > 0 ? (total + wsiPageSize - 1) / wsiPageSize : 1;
+            wsiTotalPages = totalPages;
             wsiPagination.setPageCount(wsiTotalPages);
             wsiPagination.setCurrentPageIndex(wsiCurrentPage - 1);
             updateWsiTotalDisplay(total);
@@ -444,23 +559,40 @@ public class TaskListDialog extends Stage {
         try {
             // 从新的全量缓存中读取本地状态
             List<TaskFile> cachedWsiList = cacheManager.loadAllTaskWsi(taskId);
+            logger.info("Merging local status: loaded {} cached WSI items for task {}", cachedWsiList.size(), taskId);
+
+            if (cachedWsiList.isEmpty()) {
+                logger.info("No cached data found, skipping merge");
+                return;
+            }
+
             java.util.Map<String, TaskFile> cachedWsiMap = new java.util.HashMap<>();
             for (TaskFile cachedFile : cachedWsiList) {
                 cachedWsiMap.put(cachedFile.getId(), cachedFile);
+                logger.debug("Cached WSI {}: local_status={}, local_path={}",
+                    cachedFile.getId(), cachedFile.getLocalStatus(), cachedFile.getLocalPath());
             }
 
+            int mergedCount = 0;
             for (TaskFile apiFile : wsiList) {
                 TaskFile cachedFile = cachedWsiMap.get(apiFile.getId());
                 if (cachedFile != null) {
+                    String beforeStatus = apiFile.getLocalStatus();
                     // 批量合并时不触发缓存更新，因为之后会统一保存整个列表
                     apiFile.setLocalStatus(cachedFile.getLocalStatus(), false);
                     apiFile.setLocalPath(cachedFile.getLocalPath(), false);
                     apiFile.setAnnotated(cachedFile.isAnnotated());
-                    logger.debug("Merged local status for WSI {}: {}", apiFile.getId(), cachedFile.getLocalStatus());
+                    String afterStatus = apiFile.getLocalStatus();
+                    logger.info("Merged WSI {}: status changed from '{}' to '{}'",
+                        apiFile.getId(), beforeStatus, afterStatus);
+                    mergedCount++;
+                } else {
+                    logger.debug("WSI {} not found in cache, keeping default status", apiFile.getId());
                 }
             }
+            logger.info("Merge completed: {}/{} WSI items merged", mergedCount, wsiList.size());
         } catch (IOException e) {
-            logger.warn("Failed to merge local status: {}", e.getMessage());
+            logger.warn("Failed to merge local status: {}", e.getMessage(), e);
         }
     }
 
@@ -507,17 +639,11 @@ public class TaskListDialog extends Stage {
         new Thread(() -> {
             try {
                 selectedFile.setLocalStatus("downloading");
-                if (wsi != null) {
-                    wsi.setStatus(Wsi.Status.DOWNLOADING);
-                }
                 boolean success = apiClient.downloadWsi(wsi.getDownloadUrl(), savePath);
                 Platform.runLater(() -> {
                     if (success) {
                         selectedFile.setLocalPath(savePath);
                         selectedFile.setLocalStatus("downloaded");
-                        if (wsi != null) {
-                            wsi.setStatus(Wsi.Status.DOWNLOADED);
-                        }
                         try {
                             // 将当前显示的WSI列表设置到selectedTask中，确保缓存保存最新状态
                             selectedTask.setFiles(new ArrayList<>(taskFiles));
@@ -532,9 +658,6 @@ public class TaskListDialog extends Stage {
                         alert.showAndWait();
                     } else {
                         selectedFile.setLocalStatus("default");
-                        if (wsi != null) {
-                            wsi.setStatus(Wsi.Status.DEFAULT);
-                        }
                         Alert alert = new Alert(Alert.AlertType.ERROR);
                         alert.setTitle("Error");
                         alert.setHeaderText("Failed to download WSI");
@@ -545,9 +668,6 @@ public class TaskListDialog extends Stage {
                 logger.error("Failed to download WSI: {}", e.getMessage());
                 Platform.runLater(() -> {
                     selectedFile.setLocalStatus("default");
-                    if (wsi != null) {
-                        wsi.setStatus(Wsi.Status.DEFAULT);
-                    }
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Error");
                     alert.setHeaderText("Failed to download WSI");
@@ -682,9 +802,6 @@ public class TaskListDialog extends Stage {
 
             // Update status to annotated after annotation dialog is closed
             selectedFile.setLocalStatus("annotated");
-            if (wsi != null) {
-                wsi.setStatus(Wsi.Status.ANNOTATED);
-            }
             try {
                 cacheManager.saveTask(selectedTask);
             } catch (IOException e) {

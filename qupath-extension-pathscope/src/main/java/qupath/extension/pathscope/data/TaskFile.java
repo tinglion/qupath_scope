@@ -21,6 +21,7 @@ public class TaskFile {
     private boolean annotated;
     private Map<String, Object> annotation;
     private StringProperty localStatus;
+    private int status; // 接口返回的状态值
     private Task task;
     private CacheManager cacheManager;
 
@@ -28,7 +29,7 @@ public class TaskFile {
      * 初始化任务文件对象
      */
     public TaskFile(String id, String type, String taskId, Wsi wsi, String localPath, boolean annotated,
-                    Map<String, Object> annotation, String localStatus, Task task, CacheManager cacheManager) {
+                    Map<String, Object> annotation, String localStatus, int status, Task task, CacheManager cacheManager) {
         this.id = id;
         this.type = type;
         this.taskId = taskId;
@@ -37,6 +38,7 @@ public class TaskFile {
         this.annotated = annotated;
         this.annotation = annotation != null ? annotation : new HashMap<>();
         this.localStatus = new SimpleStringProperty(localStatus != null ? localStatus : "default");
+        this.status = status;
         this.task = task;
         this.cacheManager = cacheManager;
     }
@@ -62,7 +64,10 @@ public class TaskFile {
         if (json.has("annotation") && !json.get("annotation").isJsonNull()) {
             // 这里需要根据实际的JSON结构来解析annotation
         }
-        
+
+        // 读取接口返回的status字段（int类型）
+        int status = json.has("status") && !json.get("status").isJsonNull() ? json.get("status").getAsInt() : 0;
+
         // 确定localStatus值
         String localStatus = "default";
         // 检查是否有本地状态字段（从缓存加载时）
@@ -76,7 +81,7 @@ public class TaskFile {
         // 从接口获取信息时，不使用接口返回的local_status，保持默认值"default"
         // 这样可以确保本地状态只在本地操作时更新，不受接口数据影响
 
-        return new TaskFile(id, type, taskId, wsi, localPath, annotated, annotation, localStatus, task, cacheManager);
+        return new TaskFile(id, type, taskId, wsi, localPath, annotated, annotation, localStatus, status, task, cacheManager);
     }
 
     /**
@@ -267,6 +272,14 @@ public class TaskFile {
 
     public void setAnnotated(boolean annotated) {
         this.annotated = annotated;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
     }
 
     public Task getTask() {

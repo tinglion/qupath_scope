@@ -200,59 +200,20 @@ public class CacheManager {
 
     /**
      * 保存任务的WSI列表到缓存
+     * 此方法重定向到 saveAllTaskWsi 以确保使用统一的 all_wsi.json 文件
      */
     public void saveTaskWsiList(String taskId, List<TaskFile> wsiList, int total) throws IOException {
-        logger.debug("Saving WSI list to cache for task {}: {} (total: {})", taskId, wsiList.size(), total);
-        // 确保任务缓存目录存在
-        ensureTaskCacheDirExists(taskId);
-        
-        // 保存WSI列表
-        File wsiListFile = new File(getTaskWsiListCacheFile(taskId));
-        try (FileWriter writer = new FileWriter(wsiListFile)) {
-            JsonObject wsiObj = new JsonObject();
-            wsiObj.addProperty("total", total);
-            
-            JsonArray wsiArray = new JsonArray();
-            for (TaskFile taskFile : wsiList) {
-                JsonObject wsiJson = new JsonObject();
-                wsiJson.addProperty("id", taskFile.getId());
-                
-                // 获取文件名（从wsi对象）
-                if (taskFile.getWsi() != null) {
-                    wsiJson.addProperty("name", taskFile.getWsi().getName());
-                }
-                
-                wsiJson.addProperty("type", taskFile.getType());
-                wsiJson.addProperty("status_local", taskFile.getLocalStatus());
-                wsiJson.addProperty("is_annotated", taskFile.isAnnotated());
-                wsiJson.addProperty("local_path", taskFile.getLocalPath());
-                
-                if (taskFile.getWsi() != null) {
-                    JsonObject wsiObjJson = new JsonObject();
-                    wsiObjJson.addProperty("id", taskFile.getWsi().getId());
-                    wsiObjJson.addProperty("name", taskFile.getWsi().getName());
-                    wsiObjJson.addProperty("file_path", taskFile.getWsi().getPath());
-                    wsiObjJson.addProperty("status", taskFile.getWsi().getStatus().getValue());
-                    wsiObjJson.addProperty("size", taskFile.getWsi().getSize());
-                    wsiObjJson.addProperty("ptype", taskFile.getWsi().getPtype());
-                    wsiObjJson.addProperty("download_url", taskFile.getWsi().getDownloadUrl());
-                    wsiJson.add("wsi", wsiObjJson);
-                }
-                
-                wsiArray.add(wsiJson);
-            }
-            
-            wsiObj.add("items", wsiArray);
-            gson.toJson(wsiObj, writer);
-            logger.info("WSI list saved to cache for task {}: {} (total: {})", taskId, wsiList.size(), total);
-        }
+        logger.debug("saveTaskWsiList redirecting to saveAllTaskWsi for task {}: {} items", taskId, wsiList.size());
+        saveAllTaskWsi(taskId, wsiList);
     }
     
     /**
      * 保存任务的WSI列表到缓存（兼容旧版本，默认total为列表大小）
+     * 此方法重定向到 saveAllTaskWsi 以确保使用统一的 all_wsi.json 文件
      */
     public void saveTaskWsiList(String taskId, List<TaskFile> wsiList) throws IOException {
-        saveTaskWsiList(taskId, wsiList, wsiList.size());
+        logger.debug("saveTaskWsiList redirecting to saveAllTaskWsi for task {}: {} items", taskId, wsiList.size());
+        saveAllTaskWsi(taskId, wsiList);
     }
 
     /**
@@ -336,40 +297,11 @@ public class CacheManager {
 
     /**
      * 从缓存加载任务的WSI列表
+     * 此方法重定向到 loadAllTaskWsi 以确保使用统一的 all_wsi.json 文件
      */
     public List<TaskFile> loadTaskWsiList(String taskId) throws IOException {
-        File wsiListFile = new File(getTaskWsiListCacheFile(taskId));
-        if (!wsiListFile.exists()) {
-            return new ArrayList<>();
-        }
-
-        try (FileReader reader = new FileReader(wsiListFile)) {
-            JsonElement rootElement = gson.fromJson(reader, JsonElement.class);
-            List<TaskFile> wsiList = new ArrayList<>();
-            
-            if (rootElement.isJsonObject()) {
-                // 新格式：包含total和items
-                JsonObject wsiObj = rootElement.getAsJsonObject();
-                JsonArray wsiArray = wsiObj.getAsJsonArray("items");
-                
-                for (int i = 0; i < wsiArray.size(); i++) {
-                    JsonObject wsiJson = wsiArray.get(i).getAsJsonObject();
-                    TaskFile taskFile = TaskFile.fromJson(wsiJson, null, this);
-                    wsiList.add(taskFile);
-                }
-            } else if (rootElement.isJsonArray()) {
-                // 旧格式：直接是WSI数组
-                JsonArray wsiArray = rootElement.getAsJsonArray();
-                
-                for (int i = 0; i < wsiArray.size(); i++) {
-                    JsonObject wsiJson = wsiArray.get(i).getAsJsonObject();
-                    TaskFile taskFile = TaskFile.fromJson(wsiJson, null, this);
-                    wsiList.add(taskFile);
-                }
-            }
-            
-            return wsiList;
-        }
+        logger.debug("loadTaskWsiList redirecting to loadAllTaskWsi for task {}", taskId);
+        return loadAllTaskWsi(taskId);
     }
 
     /**
@@ -437,6 +369,7 @@ public class CacheManager {
                 }
                 
                 wsiJson.addProperty("type", taskFile.getType());
+                wsiJson.addProperty("status", taskFile.getStatus());
                 wsiJson.addProperty("status_local", taskFile.getLocalStatus());
                 wsiJson.addProperty("is_annotated", taskFile.isAnnotated());
                 wsiJson.addProperty("local_path", taskFile.getLocalPath());
@@ -446,7 +379,6 @@ public class CacheManager {
                     wsiObjJson.addProperty("id", taskFile.getWsi().getId());
                     wsiObjJson.addProperty("name", taskFile.getWsi().getName());
                     wsiObjJson.addProperty("file_path", taskFile.getWsi().getPath());
-                    wsiObjJson.addProperty("status", taskFile.getWsi().getStatus().getValue());
                     wsiObjJson.addProperty("size", taskFile.getWsi().getSize());
                     wsiObjJson.addProperty("ptype", taskFile.getWsi().getPtype());
                     wsiObjJson.addProperty("download_url", taskFile.getWsi().getDownloadUrl());
@@ -478,24 +410,24 @@ public class CacheManager {
     
     /**
      * 从缓存加载任务的WSI总数
+     * 此方法从 all_wsi.json 文件读取 total 字段
      */
     public int loadTaskWsiTotal(String taskId) throws IOException {
-        File wsiListFile = new File(getTaskWsiListCacheFile(taskId));
-        if (!wsiListFile.exists()) {
+        File allWsiFile = new File(getTaskCacheDir(taskId) + "/all_wsi.json");
+        if (!allWsiFile.exists()) {
             return 0;
         }
 
-        try (FileReader reader = new FileReader(wsiListFile)) {
+        try (FileReader reader = new FileReader(allWsiFile)) {
             JsonElement rootElement = gson.fromJson(reader, JsonElement.class);
-            
+
             if (rootElement.isJsonObject()) {
-                // 新格式：包含total
                 JsonObject wsiObj = rootElement.getAsJsonObject();
                 if (wsiObj.has("total")) {
                     return wsiObj.get("total").getAsInt();
                 }
             }
-            
+
             return 0;
         }
     }
@@ -637,6 +569,7 @@ public class CacheManager {
                 }
                 
                 wsiJson.addProperty("type", taskFile.getType());
+                wsiJson.addProperty("status", taskFile.getStatus());
                 wsiJson.addProperty("status_local", taskFile.getLocalStatus());
                 wsiJson.addProperty("is_annotated", taskFile.isAnnotated());
                 wsiJson.addProperty("local_path", taskFile.getLocalPath());
@@ -646,7 +579,6 @@ public class CacheManager {
                     wsiObjJson.addProperty("id", taskFile.getWsi().getId());
                     wsiObjJson.addProperty("name", taskFile.getWsi().getName());
                     wsiObjJson.addProperty("file_path", taskFile.getWsi().getPath());
-                    wsiObjJson.addProperty("status", taskFile.getWsi().getStatus().getValue());
                     wsiObjJson.addProperty("size", taskFile.getWsi().getSize());
                     wsiObjJson.addProperty("ptype", taskFile.getWsi().getPtype());
                     wsiObjJson.addProperty("download_url", taskFile.getWsi().getDownloadUrl());
@@ -703,45 +635,22 @@ public class CacheManager {
     public boolean updateWsiLocalStatus(String taskId, String wsiId, String localStatus) {
         logger.debug("Updating WSI local status in cache: taskId={}, wsiId={}, status={}", taskId, wsiId, localStatus);
 
-        boolean updated = false;
-
-        // 1. 更新主 WSI 列表文件 (wsi_list.json)
-        try {
-            updated = updateWsiStatusInFile(getTaskWsiListCacheFile(taskId), wsiId, localStatus) || updated;
-        } catch (IOException e) {
-            logger.warn("Failed to update WSI status in main list: {}", e.getMessage());
-        }
-
-        // 2. 更新全部 WSI 文件 (all_wsi.json)
+        // 只更新 all_wsi.json 文件
         try {
             String allWsiFile = getTaskCacheDir(taskId) + "/all_wsi.json";
-            updated = updateWsiStatusInFile(allWsiFile, wsiId, localStatus) || updated;
+            boolean updated = updateWsiStatusInFile(allWsiFile, wsiId, localStatus);
+
+            if (updated) {
+                logger.info("Successfully updated WSI local status in cache: taskId={}, wsiId={}, status={}", taskId, wsiId, localStatus);
+            } else {
+                logger.warn("WSI not found in cache file: taskId={}, wsiId={}", taskId, wsiId);
+            }
+
+            return updated;
         } catch (IOException e) {
             logger.warn("Failed to update WSI status in all_wsi.json: {}", e.getMessage());
+            return false;
         }
-
-        // 3. 更新所有分页缓存文件
-        File taskDir = new File(getTaskCacheDir(taskId));
-        if (taskDir.exists() && taskDir.isDirectory()) {
-            File[] pageFiles = taskDir.listFiles((dir, name) -> name.startsWith("wsi_list_page_") && name.endsWith(".json"));
-            if (pageFiles != null) {
-                for (File pageFile : pageFiles) {
-                    try {
-                        updated = updateWsiStatusInFile(pageFile.getAbsolutePath(), wsiId, localStatus) || updated;
-                    } catch (IOException e) {
-                        logger.warn("Failed to update WSI status in page file {}: {}", pageFile.getName(), e.getMessage());
-                    }
-                }
-            }
-        }
-
-        if (updated) {
-            logger.info("Successfully updated WSI local status in cache: taskId={}, wsiId={}, status={}", taskId, wsiId, localStatus);
-        } else {
-            logger.warn("WSI not found in any cache file: taskId={}, wsiId={}", taskId, wsiId);
-        }
-
-        return updated;
     }
 
     /**
@@ -755,43 +664,22 @@ public class CacheManager {
     public boolean updateWsiLocalPath(String taskId, String wsiId, String localPath) {
         logger.debug("Updating WSI local path in cache: taskId={}, wsiId={}, path={}", taskId, wsiId, localPath);
 
-        boolean updated = false;
-
-        // 更新主 WSI 列表文件
-        try {
-            updated = updateWsiFieldInFile(getTaskWsiListCacheFile(taskId), wsiId, "local_path", localPath) || updated;
-        } catch (IOException e) {
-            logger.warn("Failed to update WSI path in main list: {}", e.getMessage());
-        }
-
-        // 更新全部 WSI 文件
+        // 只更新 all_wsi.json 文件
         try {
             String allWsiFile = getTaskCacheDir(taskId) + "/all_wsi.json";
-            updated = updateWsiFieldInFile(allWsiFile, wsiId, "local_path", localPath) || updated;
+            boolean updated = updateWsiFieldInFile(allWsiFile, wsiId, "local_path", localPath);
+
+            if (updated) {
+                logger.info("Successfully updated WSI local path in cache: taskId={}, wsiId={}", taskId, wsiId);
+            } else {
+                logger.warn("WSI not found in cache file: taskId={}, wsiId={}", taskId, wsiId);
+            }
+
+            return updated;
         } catch (IOException e) {
             logger.warn("Failed to update WSI path in all_wsi.json: {}", e.getMessage());
+            return false;
         }
-
-        // 更新所有分页缓存文件
-        File taskDir = new File(getTaskCacheDir(taskId));
-        if (taskDir.exists() && taskDir.isDirectory()) {
-            File[] pageFiles = taskDir.listFiles((dir, name) -> name.startsWith("wsi_list_page_") && name.endsWith(".json"));
-            if (pageFiles != null) {
-                for (File pageFile : pageFiles) {
-                    try {
-                        updated = updateWsiFieldInFile(pageFile.getAbsolutePath(), wsiId, "local_path", localPath) || updated;
-                    } catch (IOException e) {
-                        logger.warn("Failed to update WSI path in page file {}: {}", pageFile.getName(), e.getMessage());
-                    }
-                }
-            }
-        }
-
-        if (updated) {
-            logger.info("Successfully updated WSI local path in cache: taskId={}, wsiId={}", taskId, wsiId);
-        }
-
-        return updated;
     }
 
     /**

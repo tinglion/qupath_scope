@@ -1,4 +1,47 @@
-#
+# QuPath PathScope 开发笔记
+
+## 快速开始：打包Portable发布版
+
+如果您想直接发布一个包含pathscope扩展的完整QuPath软件包：
+
+### Windows（推荐）
+
+```cmd
+# 一键打包（推荐）
+package-portable.bat
+
+# 或手动执行
+gradlew.bat clean build jpackage -P package=image
+```
+
+输出：`build\dist\QuPath-<version>` 文件夹和ZIP压缩包
+
+### Linux/macOS
+
+```bash
+# 一键打包
+chmod +x package-portable.sh
+./package-portable.sh
+
+# 或手动执行
+./gradlew clean build jpackage -P package=image
+```
+
+输出：
+
+- Linux: `build/dist/QuPath-v<version>-Linux.tar.xz`
+- macOS: `build/dist/QuPath-<version>-arm64.app` 或 `.dmg`
+
+### 优势
+
+- **包含完整Java运行时**：用户无需安装Java
+- **解决版本兼容性**：内置Java 25运行时
+- **开箱即用**：解压即可运行
+- **自动包含pathscope**：扩展已自动集成
+
+详细说明请参考：[PACKAGE_PORTABLE.md](PACKAGE_PORTABLE.md)
+
+---
 
 ## 运行项目
 
@@ -8,9 +51,10 @@ gradlew需要访问外网
 gradlew clean --no-daemon
 gradlew jpackage --no-daemon
 
-gradlew :qupath-extension-pathscope:compileJava --no-daemon
+gradlew :qupath-extension-pathscope:build --no-daemon
 
 gradlew run
+
 ```
 
 ## 插件打包发布

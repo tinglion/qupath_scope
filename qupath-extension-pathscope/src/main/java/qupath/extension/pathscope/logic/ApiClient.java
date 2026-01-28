@@ -224,7 +224,7 @@ public class ApiClient {
         
         CacheManager cacheManager = new CacheManager();
 
-        String url = apiBaseUrl + TASK_LIST_ENDPOINT + "?user_id=" + userId + "&page=" + page + "&page_size="
+        String url = apiBaseUrl + TASK_LIST_ENDPOINT + "?user_id=" + userId + "&page=" + page + "&limit="
                 + pageSize;
         logger.debug("Task list URL: {}", url);
 
@@ -321,7 +321,7 @@ public class ApiClient {
         
         CacheManager cacheManager = new CacheManager();
 
-        String url = apiBaseUrl + TASK_WSI_LIST_ENDPOINT + "?project_task=" + taskId + "&page=" + page + "&page_size="
+        String url = apiBaseUrl + TASK_WSI_LIST_ENDPOINT + "?project_task=" + taskId + "&page=" + page + "&limit="
                 + pageSize;
         logger.debug("WSI list URL: {}", url);
 
