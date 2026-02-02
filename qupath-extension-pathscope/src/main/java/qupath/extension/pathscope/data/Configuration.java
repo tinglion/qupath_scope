@@ -18,6 +18,7 @@ public class Configuration {
     
     private String cachePath; // 缓存文件路径
     private String apiBaseUrl; // API基础URL
+    private int maxConcurrentDownloads = 1; // 最大同时下载数
     
     /**
      * 获取配置单例
@@ -86,6 +87,20 @@ public class Configuration {
         this.apiBaseUrl = apiBaseUrl;
     }
     
+    /**
+     * 获取最大同时下载数
+     */
+    public int getMaxConcurrentDownloads() {
+        return maxConcurrentDownloads;
+    }
+
+    /**
+     * 设置最大同时下载数
+     */
+    public void setMaxConcurrentDownloads(int maxConcurrentDownloads) {
+        this.maxConcurrentDownloads = Math.max(1, maxConcurrentDownloads);
+    }
+
     /**
      * 保存配置到文件
      */

@@ -527,6 +527,68 @@ public class ApiClient {
     }
 
     /**
+     * 下载进度回调接口
+     */
+    public interface DownloadProgressListener {
+        void onProgress(long bytesRead, long totalBytes);
+    }
+
+    /**
+     * 带进度回调的WSI下载方法
+     */
+    public boolean downloadWsiWithProgress(String wsiUrl, String savePath, DownloadProgressListener listener) throws IOException {
+        logger.debug("Starting downloadWsiWithProgress request");
+        logger.debug("WSI download URL: {}", wsiUrl);
+        logger.debug("Save path: {}", savePath);
+
+        if (wsiUrl == null || wsiUrl.isEmpty()) {
+            throw new IOException("WSI download URL is null or empty");
+        }
+
+        if (!wsiUrl.startsWith("http://") && !wsiUrl.startsWith("https://")) {
+            logger.warn("WSI download URL missing protocol prefix, adding http://");
+            wsiUrl = "http://" + wsiUrl;
+        }
+
+        Request request = new Request.Builder()
+                .url(wsiUrl)
+                .addHeader("Authorization", "JWT " + authToken)
+                .build();
+
+        try (Response response = client.newCall(request).execute()) {
+            logger.debug("WSI download response status: {}", response.code());
+
+            if (response.isSuccessful()) {
+                File saveDir = new File(savePath).getParentFile();
+                if (!saveDir.exists()) {
+                    saveDir.mkdirs();
+                }
+
+                long contentLength = response.body().contentLength();
+                try (InputStream inputStream = response.body().byteStream();
+                        FileOutputStream outputStream = new FileOutputStream(savePath)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    long totalBytesRead = 0;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
+                        if (listener != null) {
+                            listener.onProgress(totalBytesRead, contentLength);
+                        }
+                    }
+                }
+
+                logger.debug("WSI download successful, saved to: {}", savePath);
+                return true;
+            } else {
+                logger.error("Failed to download WSI: {}", response.message());
+                throw new IOException("Failed to download WSI: " + response.message());
+            }
+        }
+    }
+
+    /**
      * Submit task completion status.
      */
     public boolean submitTaskCompletion(String taskId, int status) throws IOException {

@@ -34,6 +34,7 @@ import qupath.extension.pathscope.data.CacheManager;
 import qupath.extension.pathscope.logic.ApiClient;
 import qupath.extension.pathscope.logic.ApiClient.TaskListResult;
 import qupath.extension.pathscope.logic.ApiClient.WsiListResult;
+import qupath.extension.pathscope.logic.DownloadManager;
 
 /**
  * 任务列表对话框，用于显示任务列表和WSI列表
@@ -72,6 +73,9 @@ public class TaskListDialog extends Stage {
         this.qupath = qupath;
         this.apiClient = apiClient;
         this.cacheManager = new CacheManager();
+
+        // 初始化下载管理器（确保在UI创建前可用）
+        DownloadManager.init(apiClient);
 
         initModality(Modality.NONE); // 设置为非模态，不阻塞主窗口
         setTitle("PathScope Task List");
@@ -188,6 +192,9 @@ public class TaskListDialog extends Stage {
         Button downloadButton = new Button("Download WSI");
         downloadButton.setOnAction(e -> downloadSelectedWsi());
 
+        Button downloadListButton = new Button("下载列表");
+        downloadListButton.setOnAction(e -> DownloadListDialog.getInstance().showDialog());
+
         Button annotateButton = new Button("Annotate");
         annotateButton.setOnAction(e -> annotateSelectedWsi());
 
@@ -197,7 +204,7 @@ public class TaskListDialog extends Stage {
         HBox buttonBox = new HBox(10);
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.getChildren().addAll(updateTasksButton, updateTaskButton, updateWsiButton, downloadButton,
-                annotateButton, submitButton);
+                downloadListButton, annotateButton, submitButton);
 
         // Create task pagination
         taskPagination = new Pagination();
@@ -680,46 +687,23 @@ public class TaskListDialog extends Stage {
         String saveDir = System.getProperty("user.home") + "/.qupath/pathscope/wsi/" + selectedTask.getId();
         String savePath = saveDir + "/" + wsi.getName();
 
-        new Thread(() -> {
-            try {
-                selectedFile.setLocalStatus("downloading");
-                boolean success = apiClient.downloadWsi(wsi.getDownloadUrl(), savePath);
-                Platform.runLater(() -> {
-                    if (success) {
-                        selectedFile.setLocalPath(savePath);
-                        selectedFile.setLocalStatus("downloaded");
-                        try {
-                            // 将当前显示的WSI列表设置到selectedTask中，确保缓存保存最新状态
-                            selectedTask.setFiles(new ArrayList<>(taskFiles));
-                            cacheManager.saveTask(selectedTask);
-                        } catch (IOException e) {
-                            logger.error("Failed to save task: {}", e.getMessage());
-                        }
-                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                        alert.setTitle("Success");
-                        alert.setHeaderText("WSI downloaded successfully");
-                        alert.setContentText("WSI saved to: " + savePath);
-                        alert.showAndWait();
-                    } else {
-                        selectedFile.setLocalStatus("default");
-                        Alert alert = new Alert(Alert.AlertType.ERROR);
-                        alert.setTitle("Error");
-                        alert.setHeaderText("Failed to download WSI");
-                        alert.showAndWait();
-                    }
-                });
-            } catch (IOException e) {
-                logger.error("Failed to download WSI: {}", e.getMessage());
-                Platform.runLater(() -> {
-                    selectedFile.setLocalStatus("default");
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error");
-                    alert.setHeaderText("Failed to download WSI");
-                    alert.setContentText(e.getMessage());
-                    alert.showAndWait();
-                });
-            }
-        }).start();
+        // 将当前WSI列表设置到selectedTask中，确保缓存保存最新状态
+        selectedTask.setFiles(new ArrayList<>(taskFiles));
+
+        // 通过DownloadManager添加下载任务
+        DownloadManager downloadManager = DownloadManager.init(apiClient);
+        boolean added = downloadManager.addDownload(selectedFile, savePath, selectedTask);
+
+        if (added) {
+            // 自动打开下载列表窗口
+            DownloadListDialog.getInstance().showDialog();
+        } else {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Information");
+            alert.setHeaderText("下载任务已存在");
+            alert.setContentText("该WSI已在下载队列中");
+            alert.showAndWait();
+        }
     }
 
     private void annotateSelectedWsi() {
