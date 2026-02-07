@@ -1,8 +1,8 @@
-# PowerShell script to create a fat JAR for qupath-extension-pathscope
+﻿# PowerShell script to create a fat JAR for qupath-extension-pathscope
 
 # Configuration
 $PLUGIN_NAME = "qupath-extension-pathscope"
-$VERSION = "0.7.0-SNAPSHOT"
+$VERSION = "0.7.1"
 $PROJECT_DIR = Get-Location
 $LIB_DIR = Join-Path $PROJECT_DIR "libs"
 $PLUGIN_JAR = Join-Path $PROJECT_DIR "$PLUGIN_NAME\build\libs\$PLUGIN_NAME-$VERSION.jar"
@@ -25,7 +25,7 @@ New-Item -ItemType Directory -Path $DIST_DIR -Force | Out-Null
 
 # Step 1: Build the plugin if needed
 Write-Host "1. Verifying plugin JAR..."
-Write-Host "   ✓ Plugin JAR found: $PLUGIN_JAR"
+Write-Host "   鉁?Plugin JAR found: $PLUGIN_JAR"
 
 # Step 2: Download dependencies if missing
 Write-Host "2. Checking dependencies..."
@@ -43,7 +43,7 @@ foreach ($dep in $dependencies) {
         Write-Host "   Downloading $($dep.Name)..."
         Invoke-WebRequest -Uri $dep.Url -OutFile $depPath
     } else {
-        Write-Host "   ✓ $($dep.Name) already exists"
+        Write-Host "   鉁?$($dep.Name) already exists"
     }
 }
 
@@ -130,7 +130,7 @@ $finalFatJar = Join-Path $DIST_DIR "$PLUGIN_NAME-$VERSION-all.jar"
 if (Test-Path $finalFatJar) {
     Write-Host "4. Verifying fat JAR..."
     $size = (Get-Item $finalFatJar).Length / 1MB
-    Write-Host "   ✓ Fat JAR created successfully!" -ForegroundColor Green
+    Write-Host "   鉁?Fat JAR created successfully!" -ForegroundColor Green
     Write-Host "   Size: $([math]::Round($size, 2)) MB"
     
     Write-Host "5. Checking contents..."

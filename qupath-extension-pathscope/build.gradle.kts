@@ -65,7 +65,7 @@ tasks.register<JavaExec>("downgradeJar") {
     dependsOn("fatJar")
 
     val inputJar = tasks.named<Jar>("fatJar").get().archiveFile.get().asFile
-    val outputJar = file("${buildDir}/libs/qupath-extension-pathscope-0.7.0-SNAPSHOT-all-java21.jar")
+    val outputJar = file("${buildDir}/libs/qupath-extension-pathscope-0.7.1-all-java21.jar")
 
     doLast {
         ant.withGroovyBuilder {

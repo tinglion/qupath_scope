@@ -1,9 +1,9 @@
-# Simple PowerShell script to create a fat JAR
+﻿# Simple PowerShell script to create a fat JAR
 # This script manually combines JAR files without relying on complex Gradle configurations
 
 # Configuration
 $PLUGIN_NAME = "qupath-extension-pathscope"
-$VERSION = "0.7.0-SNAPSHOT"
+$VERSION = "0.7.1"
 $PROJECT_DIR = Get-Location
 $OUTPUT_DIR = Join-Path $PROJECT_DIR "dist"
 
@@ -90,8 +90,8 @@ if (-not (Test-Path $fatJarPath)) {
 
 # Get file size
 $fileSize = (Get-Item $fatJarPath).Length / 1MB
-Write-Host "   ✓ Fat JAR created: $fatJarName"
-Write-Host "   ✓ Size: $([math]::Round($fileSize, 2)) MB"
+Write-Host "   鉁?Fat JAR created: $fatJarName"
+Write-Host "   鉁?Size: $([math]::Round($fileSize, 2)) MB"
 
 Write-Host ""
 Write-Host "Step 3: Verifying fat JAR contents..."
@@ -100,27 +100,27 @@ Write-Host "Step 3: Verifying fat JAR contents..."
 Write-Host "   Checking for plugin classes..."
 $pluginClasses = & jar tf $fatJarPath | Select-String -Pattern "qupath/extension/pathscope" | Measure-Object | Select-Object -ExpandProperty Count
 if ($pluginClasses -gt 0) {
-    Write-Host "   ✓ Plugin classes found: $pluginClasses"
+    Write-Host "   鉁?Plugin classes found: $pluginClasses"
 } else {
-    Write-Host "   ✗ Plugin classes not found!" -ForegroundColor Red
+    Write-Host "   鉁?Plugin classes not found!" -ForegroundColor Red
 }
 
 # Check if okhttp3 classes are included
 Write-Host "   Checking for okhttp3 classes..."
 $okhttpClasses = & jar tf $fatJarPath | Select-String -Pattern "okhttp3" | Measure-Object | Select-Object -ExpandProperty Count
 if ($okhttpClasses -gt 0) {
-    Write-Host "   ✓ OkHttp3 classes found: $okhttpClasses"
+    Write-Host "   鉁?OkHttp3 classes found: $okhttpClasses"
 } else {
-    Write-Host "   ✗ OkHttp3 classes not found!" -ForegroundColor Red
+    Write-Host "   鉁?OkHttp3 classes not found!" -ForegroundColor Red
 }
 
 # Check if gson classes are included
 Write-Host "   Checking for gson classes..."
 $gsonClasses = & jar tf $fatJarPath | Select-String -Pattern "com/google/gson" | Measure-Object | Select-Object -ExpandProperty Count
 if ($gsonClasses -gt 0) {
-    Write-Host "   ✓ Gson classes found: $gsonClasses"
+    Write-Host "   鉁?Gson classes found: $gsonClasses"
 } else {
-    Write-Host "   ✗ Gson classes not found!" -ForegroundColor Red
+    Write-Host "   鉁?Gson classes not found!" -ForegroundColor Red
 }
 
 Write-Host ""

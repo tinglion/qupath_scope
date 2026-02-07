@@ -30,7 +30,7 @@ if [ -f "VERSION" ]; then
     echo "QuPath Version: $QUPATH_VERSION"
 else
     echo "WARNING: VERSION file not found, using default"
-    QUPATH_VERSION="0.7.0-SNAPSHOT"
+    QUPATH_VERSION="0.7.1"
 fi
 
 # Detect platform

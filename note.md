@@ -1,5 +1,7 @@
 # QuPath PathScope 开发笔记
 
+VERSION=0.7.1
+
 ## 快速开始：打包Portable发布版
 
 如果您想直接发布一个包含pathscope扩展的完整QuPath软件包：
@@ -117,16 +119,16 @@ X actionable tasks: X executed, X up-to-date
 ```
 
 生成的插件文件将位于 `qupath-extension-pathscope/build/libs/` 目录下：
-- 主插件jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT.jar`
-- 源码jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT-sources.jar`
-- 文档jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT-javadoc.jar`
+- 主插件jar包：`qupath-extension-pathscope-{VERSION}.jar`
+- 源码jar包：`qupath-extension-pathscope-{VERSION}-sources.jar`
+- 文档jar包：`qupath-extension-pathscope-{VERSION}-javadoc.jar`
 
 ### 构建产物
 
 构建成功后，插件文件生成在 `qupath-extension-pathscope/build/libs/` 目录下：
-- 主插件jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT.jar`
-- 源码jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT-sources.jar`
-- 文档jar包：`qupath-extension-pathscope-0.7.0-SNAPSHOT-javadoc.jar`
+- 主插件jar包：`qupath-extension-pathscope-{VERSION}.jar`
+- 源码jar包：`qupath-extension-pathscope-{VERSION}-sources.jar`
+- 文档jar包：`qupath-extension-pathscope-{VERSION}-javadoc.jar`
 
 ### 发布方式
 
@@ -137,7 +139,7 @@ X actionable tasks: X executed, X up-to-date
 
 #### 步骤1：获取插件文件
 从构建好的项目中获取插件主jar文件：
-- 开发机器路径：`qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.0-SNAPSHOT.jar`
+- 开发机器路径：`qupath-extension-pathscope/build/libs/qupath-extension-pathscope-{VERSION}.jar`
 - 通过网络传输或U盘等方式将该文件复制到目标机器
 
 #### 步骤2：找到QuPath插件目录

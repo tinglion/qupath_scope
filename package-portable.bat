@@ -27,7 +27,7 @@ if exist "VERSION" (
     echo QuPath Version: %QUPATH_VERSION%
 ) else (
     echo WARNING: VERSION file not found, using default
-    set QUPATH_VERSION=0.7.0-SNAPSHOT
+    set QUPATH_VERSION=0.7.1
 )
 
 echo.

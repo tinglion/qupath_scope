@@ -23,7 +23,7 @@
 #### 1. 获取统一包
 
 从构建好的项目中获取统一包文件：
-- **文件路径**：`qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.0-SNAPSHOT-all.jar`
+- **文件路径**：`qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.1-all.jar`
 - **文件大小**：约 149 MB（包含所有依赖）
 
 #### 2. 找到 QuPath 插件目录
@@ -52,7 +52,7 @@
 
 如果您需要手动部署，需要同时复制插件 JAR 和所有依赖 JAR：
 
-1. 复制插件 JAR：`qupath-extension-pathscope-0.7.0-SNAPSHOT.jar`
+1. 复制插件 JAR：`qupath-extension-pathscope-0.7.1.jar`
 2. 复制依赖 JAR：
    - `okhttp-4.12.0.jar`
    - `okio-3.4.0.jar`
@@ -73,7 +73,7 @@
 
 构建完成后，统一包将位于：
 ```
-qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.0-SNAPSHOT-all.jar
+qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.1-all.jar
 ```
 
 ## 优势
@@ -138,7 +138,7 @@ qupath-extension-pathscope/build/libs/qupath-extension-pathscope-0.7.0-SNAPSHOT-
 
 ## 版本信息
 
-- 插件版本：0.7.0-SNAPSHOT
+- 插件版本：0.7.1
 - 支持 QuPath 版本：0.6.0+
 - Java 版本要求：Java 21+
 

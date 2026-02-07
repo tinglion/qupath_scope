@@ -1,7 +1,7 @@
-@echo off
+﻿@echo off
 setlocal enabledelayedexpansion
 
-REM 配置变量
+REM éç½®åé
 set VERSION_FILE=VERSION
 set PLUGIN_NAME=qupath-extension-pathscope
 set BUILD_DIR=build
@@ -9,22 +9,20 @@ set LIB_DIR=libs
 set OUTPUT_DIR=%BUILD_DIR%\fatjars
 set MAIN_JAR=%PLUGIN_NAME%-%VERSION%-%VERSION%-SNAPSHOT.jar
 
-REM 读取版本号
-set /p VERSION=<%VERSION_FILE%
-set VERSION=%VERSION:~0,-1% REM 移除换行符
-
-REM 创建输出目录
+REM è¯»åçæ¬å?set /p VERSION=<%VERSION_FILE%
+set VERSION=%VERSION:~0,-1% REM ç§»é¤æ¢è¡ç¬?
+REM åå»ºè¾åºç®å½
 mkdir %OUTPUT_DIR% 2>nul
 mkdir %LIB_DIR% 2>nul
 
-REM 1. 构建原始插件JAR
-echo "Step 1: 构建原始插件JAR..."
+REM 1. æå»ºåå§æä»¶JAR
+echo "Step 1: æå»ºåå§æä»¶JAR..."
 call gradlew :%PLUGIN_NAME%:jar --no-daemon
 if %ERRORLEVEL% neq 0 goto error
 
-REM 2. 下载依赖
+REM 2. ä¸è½½ä¾èµ
 
-echo "Step 2: 下载依赖..."
+echo "Step 2: ä¸è½½ä¾èµ..."
 
 REM okhttp3
 echo "Downloading okhttp..."
@@ -51,42 +49,40 @@ echo "Downloading gson..."
 curl -L -o %LIB_DIR%\gson-2.13.2.jar https://repo1.maven.org/maven2/com/google/code/gson/gson/2.13.2/gson-2.13.2.jar
 if %ERRORLEVEL% neq 0 goto error
 
-REM 3. 创建临时目录用于组装JAR
+REM 3. åå»ºä¸´æ¶ç®å½ç¨äºç»è£JAR
 set TEMP_DIR=%BUILD_DIR%\temp_fatjar
 mkdir %TEMP_DIR% 2>nul
 
-REM 4. 解压所有JAR到临时目录
-echo "Step 3: 解压JAR文件..."
+REM 4. è§£åææJARå°ä¸´æ¶ç®å½?echo "Step 3: è§£åJARæä»¶..."
 
-REM 解压插件JAR
-jar xf %PLUGIN_NAME%\build\libs\%PLUGIN_NAME%-0.7.0-SNAPSHOT.jar -C %TEMP_DIR%
+REM è§£åæä»¶JAR
+jar xf %PLUGIN_NAME%\build\libs\%PLUGIN_NAME%-0.7.1.jar -C %TEMP_DIR%
 
-REM 解压依赖JAR
+REM è§£åä¾èµJAR
 for %%f in (%LIB_DIR%\*.jar) do (
     echo "Extracting %%~nf..."
     jar xf %%f -C %TEMP_DIR%
 )
 
-REM 5. 创建fat JAR
-echo "Step 4: 创建fat JAR..."
-jar cf %OUTPUT_DIR%\%PLUGIN_NAME%-0.7.0-SNAPSHOT-all.jar -C %TEMP_DIR% .
+REM 5. åå»ºfat JAR
+echo "Step 4: åå»ºfat JAR..."
+jar cf %OUTPUT_DIR%\%PLUGIN_NAME%-0.7.1-all.jar -C %TEMP_DIR% .
 
-REM 6. 清理临时文件
-echo "Step 5: 清理临时文件..."
+REM 6. æ¸çä¸´æ¶æä»¶
+echo "Step 5: æ¸çä¸´æ¶æä»¶..."
 rmdir /s /q %TEMP_DIR%
 
-REM 7. 复制到分发目录
-mkdir dist 2>nul
-copy %OUTPUT_DIR%\%PLUGIN_NAME%-0.7.0-SNAPSHOT-all.jar dist\ 2>nul
+REM 7. å¤å¶å°ååç®å½?mkdir dist 2>nul
+copy %OUTPUT_DIR%\%PLUGIN_NAME%-0.7.1-all.jar dist\ 2>nul
 
 echo ""
-echo "构建完成！"
-echo "输出文件：%OUTPUT_DIR%\%PLUGIN_NAME%-0.7.0-SNAPSHOT-all.jar"
-echo "分发文件：dist\%PLUGIN_NAME%-0.7.0-SNAPSHOT-all.jar"
+echo "æå»ºå®æï¼?
+echo "è¾åºæä»¶ï¼?OUTPUT_DIR%\%PLUGIN_NAME%-0.7.1-all.jar"
+echo "ååæä»¶ï¼dist\%PLUGIN_NAME%-0.7.1-all.jar"
 goto end
 
 error:
-echo "构建失败！"
+echo "æå»ºå¤±è´¥ï¼?
 exit /b 1
 
 end:

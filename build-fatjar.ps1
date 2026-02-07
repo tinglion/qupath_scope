@@ -1,4 +1,4 @@
-# PowerShell script to build a fat JAR for the qupath-extension-pathscope plugin
+﻿# PowerShell script to build a fat JAR for the qupath-extension-pathscope plugin
 
 # Configuration
 $VERSION_FILE = "VERSION"
@@ -56,7 +56,7 @@ New-Item -ItemType Directory -Path $TEMP_DIR -Force | Out-Null
 Write-Host "Step 3: Extracting JAR files..." -ForegroundColor Cyan
 
 # Extract plugin JAR
-$pluginJarPath = Join-Path $PLUGIN_NAME "build/libs/$PLUGIN_NAME-0.7.0-SNAPSHOT.jar"
+$pluginJarPath = Join-Path $PLUGIN_NAME "build/libs/$PLUGIN_NAME-0.7.1.jar"
 Write-Host "Extracting plugin JAR: $pluginJarPath"
 & jar xf $pluginJarPath -C $TEMP_DIR
 
@@ -69,7 +69,7 @@ Get-ChildItem -Path $LIB_DIR -Filter "*.jar" | ForEach-Object {
 
 # Step 5: Create fat JAR
 Write-Host "Step 4: Creating fat JAR..." -ForegroundColor Cyan
-$fatJarName = "$PLUGIN_NAME-0.7.0-SNAPSHOT-all.jar"
+$fatJarName = "$PLUGIN_NAME-0.7.1-all.jar"
 $fatJarPath = Join-Path $OUTPUT_DIR $fatJarName
 & jar cf $fatJarPath -C $TEMP_DIR .
 
@@ -86,17 +86,17 @@ Write-Host "Step 6: Verifying fat JAR contents..." -ForegroundColor Cyan
 Write-Host "Checking if okhttp3 classes are included..."
 & jar tf $fatJarPath | Select-String -Pattern "okhttp3" -Quiet
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "✓ okhttp3 classes found" -ForegroundColor Green
+    Write-Host "鉁?okhttp3 classes found" -ForegroundColor Green
 } else {
-    Write-Host "✗ okhttp3 classes missing!" -ForegroundColor Red
+    Write-Host "鉁?okhttp3 classes missing!" -ForegroundColor Red
 }
 
 Write-Host "Checking if gson classes are included..."
 & jar tf $fatJarPath | Select-String -Pattern "com/google/gson" -Quiet
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "✓ gson classes found" -ForegroundColor Green
+    Write-Host "鉁?gson classes found" -ForegroundColor Green
 } else {
-    Write-Host "✗ gson classes missing!" -ForegroundColor Red
+    Write-Host "鉁?gson classes missing!" -ForegroundColor Red
 }
 
 # Final summary

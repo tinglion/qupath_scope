@@ -1,5 +1,7 @@
 package qupath.extension.pathscope.ui;
 
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Separator;
 import qupath.lib.common.Version;
 import qupath.lib.gui.QuPathGUI;
@@ -18,21 +20,45 @@ public class ApiIntegrationExtension implements QuPathExtension {
         var pathScopeCommands = new ApiIntegrationCommands.PathScopeCommands(qupath);
         qupath.installActions(ActionTools.getAnnotatedActions(pathScopeCommands));
         
-        // Add PathScope button to toolbar
+        // Add PathScope dropdown menus to toolbar
         var toolbar = qupath.getToolBar();
         if (toolbar != null) {
-            // Create button with text for PathScope main functionality
-            // Using createButton instead of createButtonWithGraphicOnly to show text
-            var pathScopeButton = ActionTools.createButton(pathScopeCommands.actionPathScope);
-            
-            // Add separator if toolbar is not empty
             if (!toolbar.getItems().isEmpty()) {
                 toolbar.getItems().add(new Separator());
             }
-            
-            // Add the button to toolbar
-            toolbar.getItems().add(pathScopeButton);
+
+            // PathScope dropdown menu
+            MenuButton pathScopeMenu = new MenuButton("PathScope");
+            pathScopeMenu.getItems().addAll(
+                    createMenuItem(pathScopeCommands.actionPathScope),
+                    createMenuItem(pathScopeCommands.actionLogin),
+                    createMenuItem(pathScopeCommands.actionGetTaskList),
+                    createMenuItem(pathScopeCommands.actionConfiguration),
+                    createMenuItem(pathScopeCommands.actionExpertAssessment)
+            );
+
+            // Zoom dropdown menu
+            var zoomCommands = pathScopeCommands.zoomCommands;
+            MenuButton zoomMenu = new MenuButton("Zoom");
+            zoomMenu.getItems().addAll(
+                    createMenuItem(zoomCommands.actionZoomFit),
+                    createMenuItem(zoomCommands.actionZoom5x),
+                    createMenuItem(zoomCommands.actionZoom10x),
+                    createMenuItem(zoomCommands.actionZoom20x),
+                    createMenuItem(zoomCommands.actionZoom40x),
+                    createMenuItem(zoomCommands.actionZoomOrigin)
+            );
+
+            toolbar.getItems().addAll(pathScopeMenu, zoomMenu);
         }
+    }
+
+    private static MenuItem createMenuItem(org.controlsfx.control.action.Action action) {
+        MenuItem item = new MenuItem();
+        item.textProperty().bind(action.textProperty());
+        item.setOnAction(e -> action.handle(new javafx.event.ActionEvent()));
+        item.disableProperty().bind(action.disabledProperty());
+        return item;
     }
 
     @Override

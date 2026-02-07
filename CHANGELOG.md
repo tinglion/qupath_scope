@@ -1,4 +1,4 @@
-## Version 0.7.0-SNAPSHOT
+## Version 0.7.1
 
 Version in progress...
 
